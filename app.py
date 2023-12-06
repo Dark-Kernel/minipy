@@ -16,19 +16,16 @@ def start():
 
 @app.route('/upload', methods=['GET', 'POST'])
 def receive():
+    secret_pass = request.form.get("pass")
     plain_file = request.files.get("file")
     if plain_file and plain_file.filename:
         file_data = io.BytesIO()
         plain_file.seek(0)
         file_data.write(plain_file.read())
-        print(file_data.getvalue())
-        print(type(file_data))
         private_key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=2048
         )
-        
-        
         
         # signature
         signature = private_key.sign(
@@ -52,7 +49,6 @@ def receive():
             hashes.SHA256()
         )
         
-        
         # Encryption
         cipher_text = public_key.encrypt(
             file_data.getvalue(),
@@ -63,7 +59,6 @@ def receive():
             )
         )
         
-        
         # send files
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED, False) as zip_file:
@@ -71,14 +66,13 @@ def receive():
             zip_file.writestr('key.pem', private_key.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.PKCS8,
-                encryption_algorithm=serialization.NoEncryption()
+                encryption_algorithm=serialization.BestAvailableEncryption(password=secret_pass.encode('utf-8'))
+                #encryption_algorithm=serialization.NoEncryption()
             ))
             
         zip_buffer.seek(0)
         
         return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name='encrypted.zip')          
-        
-        #return "ok"
     
     else:
         return 'invalid file'
@@ -86,6 +80,7 @@ def receive():
 
 @app.route('/decr', methods=['GET', 'POST'])
 def send_decrypt():
+    secret_pass = request.form.get("pass")
     cipher_file = request.files.get("cipher")
     private_key_file = request.files.get("privkey")
     if cipher_file and cipher_file.filename and private_key_file and private_key_file.filename:
@@ -96,13 +91,12 @@ def send_decrypt():
         private_key_data = io.BytesIO()
         private_key_file.seek(0)
         private_key_data.write(private_key_file.read())
-        print(private_key_data.getvalue().decode('utf-8'))        
 
         private_key = serialization.load_pem_private_key(
             private_key_data.getvalue(),
-            password=None,
+            password=secret_pass.encode('utf-8'),
+            #password=None,
             backend=default_backend()
-           # format=serialization.PrivateFormat.PKCS8
         )
         
         # Decryption
