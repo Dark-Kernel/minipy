@@ -6,40 +6,50 @@ from cryptography.hazmat.backends import default_backend
 from src.utils.common_utils import read_file_content, create_zip_buffer
 
 
-def rsa_encrypt(plain_file, secret_pass):
+def rsa_encrypt(plain_file, secret_pass, existing_key):
     try:
         if plain_file and plain_file.filename:
             file_data = read_file_content(plain_file)
 
-            # key generation
-            private_key = rsa.generate_private_key(
-                public_exponent=65537,
-                key_size=2048
-            )
+            if existing_key and existing_key.filename:
+                existing_key_data = read_file_content(existing_key)
+                private_key = serialization.load_pem_private_key(
+                    existing_key_data.getvalue(),
+                    password=secret_pass.encode('utf-8'), #password=None,
+                    backend=default_backend()
+                ) 
+                public_key = private_key.public_key()
 
-            # signature
-            signature = private_key.sign(
-                file_data.getvalue(),
-                padding.PSS(
-                    mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH
+            else:
+                # key generation
+                private_key = rsa.generate_private_key(
+                    public_exponent=65537,
+                    key_size=2048
+                )
+
+                # signature
+                signature = private_key.sign(
+                    file_data.getvalue(),
+                    padding.PSS(
+                        mgf=padding.MGF1(hashes.SHA256()),
+                        salt_length=padding.PSS.MAX_LENGTH
+                        ),
+                    hashes.SHA256()
+                )
+
+                # verification
+                public_key = private_key.public_key()
+                public_key.verify(
+                    signature,
+                    file_data.getvalue(),
+                    padding.PSS(
+                        mgf=padding.MGF1(hashes.SHA256()),
+                        salt_length=padding.PSS.MAX_LENGTH
                     ),
-                hashes.SHA256()
-            )
+                    hashes.SHA256()
+                )
 
-            # verification
-            public_key = private_key.public_key()
-            public_key.verify(
-                signature,
-                file_data.getvalue(),
-                padding.PSS(
-                    mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH
-                ),
-                hashes.SHA256()
-            )
-
-            # Encryption
+                # Encryption
             cipher_text = public_key.encrypt(
                 file_data.getvalue(),
                 padding.OAEP(
@@ -49,6 +59,9 @@ def rsa_encrypt(plain_file, secret_pass):
                 )
             )
 
+            if existing_key and existing_key.filename: 
+                return cipher_text;
+            
             # send files
             files_dict = {
                 'cipher.encr': cipher_text,

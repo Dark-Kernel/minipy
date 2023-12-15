@@ -5,21 +5,27 @@ from src.utils.common_utils import read_file_content, create_zip_buffer
 import base64, os
 
 
-def fernet_encrypt(plain_file, secret_pass):
-    if not secret_pass:
-        secret_pass = "somepass"
+def fernet_encrypt(plain_file, secret_pass, existing_key):
     if plain_file and plain_file.filename:
         plain_data = read_file_content(plain_file)
-        salt = os.urandom(16)
+        if existing_key and existing_key.filename:
+            existing_key_data = read_file_content(existing_key)
+            f = Fernet(existing_key_data.getvalue())
+            cipher_data = f.encrypt(plain_data.getvalue())
+            return cipher_data
         
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=480000
-        )
-
-        key = base64.urlsafe_b64encode(kdf.derive(secret_pass.encode('utf-8'))) # key = Fernet.generate_key()
+        if secret_pass != None:
+            salt = os.urandom(16)
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=480000
+            )
+            key = base64.urlsafe_b64encode(kdf.derive(secret_pass.encode('utf-8'))) # key = Fernet.generate_key()
+        else:
+            key = Fernet.generate_key()
+ 
         f = Fernet(key)
         cipher_data = f.encrypt(plain_data.getvalue())
          

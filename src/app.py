@@ -2,6 +2,7 @@ from flask import Flask, request, send_file
 import io
 from src.crypto_functions.rsa_handler import rsa_encrypt, rsa_decrypt
 from src.crypto_functions.fernet_handler import fernet_encrypt, fernet_decrypt
+from src.crypto_functions.aes_handler import aes_encrypt
 
 app = Flask(__name__)
 
@@ -13,16 +14,23 @@ def start():
 @app.route('/encr', methods=['GET', 'POST'])
 def receive():
     algorithm = f"{request.args.get('algo')}"
-    print(algorithm)
+    existing_key_file = request.files.get("privkey")
     secret_pass = request.form.get("pass")
     plain_file = request.files.get("file")
     if plain_file and plain_file.filename:
         if algorithm == 'rsa':
             print("---------------rsa-------------")
-            zip_buffer = rsa_encrypt(plain_file, secret_pass)
+            zip_buffer = rsa_encrypt(plain_file, secret_pass, existing_key_file)
+            if existing_key_file and existing_key_file.filename:
+                return send_file(io.BytesIO(zip_buffer), mimetype='text/plain', as_attachment=True, download_name='cipher2.encr')
             return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name='encrypted.zip')          
         elif algorithm == 'fernet':
-            zip_buffer = fernet_encrypt(plain_file, secret_pass)
+            zip_buffer = fernet_encrypt(plain_file, secret_pass, existing_key_file)
+            if existing_key_file and existing_key_file.filename:
+                return send_file(io.BytesIO(zip_buffer), mimetype='text/plain', as_attachment=True, download_name='cipher2.encr')
+            return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name='encrypted.zip')          
+        elif algorithm == 'aes':
+            zip_buffer = aes_encrypt(plain_file, secret_pass)
             return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name='encrypted.zip')          
         else: 
             return "Invalidddd"
@@ -48,6 +56,10 @@ def send_decrypt():
             response = send_file(io.BytesIO(decrypted_text), mimetype='text/plain', as_attachment=True, download_name='decrypted.txt')
             response.headers.add('Content-Disposition', 'attachment')
             return response
+        elif algorithm == 'aes':
+            sym_key = request.files.get("symkey")
+            cipher = aes_encrypt(cipher_file, private_key_file, sym_key, secret_pass)
+            return cipher
     else:
         return "invalid file"       
 
