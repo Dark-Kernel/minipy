@@ -2,7 +2,7 @@ from flask import Flask, request, send_file
 import io
 from src.crypto_functions.rsa_handler import rsa_encrypt, rsa_decrypt
 from src.crypto_functions.fernet_handler import fernet_encrypt, fernet_decrypt
-from src.crypto_functions.aes_handler import aes_encrypt
+from src.crypto_functions.aes_handler import aes_encrypt, aes_decrypt
 
 app = Flask(__name__)
 
@@ -58,7 +58,7 @@ def send_decrypt():
             return response
         elif algorithm == 'aes':
             sym_key = request.files.get("symkey")
-            cipher = aes_encrypt(cipher_file, private_key_file, sym_key, secret_pass)
+            cipher = aes_decrypt(cipher_file, private_key_file, sym_key, secret_pass)
             return cipher
     else:
         return "invalid file"       
