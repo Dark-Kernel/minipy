@@ -19,7 +19,6 @@ def receive():
     plain_file = request.files.get("file")
     if plain_file and plain_file.filename:
         if algorithm == 'rsa':
-            print("---------------rsa-------------")
             zip_buffer = rsa_encrypt(plain_file, secret_pass, existing_key_file)
             if existing_key_file and existing_key_file.filename:
                 return send_file(io.BytesIO(zip_buffer), mimetype='text/plain', as_attachment=True, download_name='cipher2.encr')
@@ -33,7 +32,7 @@ def receive():
             zip_buffer = aes_encrypt(plain_file, secret_pass)
             return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name='encrypted.zip')          
         else: 
-            return "Invalidddd"
+            return "Invalid algorithm \nvalid: \n - rsa\n - fernet\n - aes"
             
     else:
         return 'invalid file'
@@ -58,8 +57,10 @@ def send_decrypt():
             return response
         elif algorithm == 'aes':
             sym_key = request.files.get("symkey")
-            cipher = aes_decrypt(cipher_file, private_key_file, sym_key, secret_pass)
-            return cipher
+            decrypted_text = aes_decrypt(cipher_file, private_key_file, sym_key)
+            response = send_file(io.BytesIO(decrypted_text), mimetype='text/plain', as_attachment=True, download_name='decrypted.txt')
+            response.headers.add('Content-Disposition', 'attachment')
+            return response
     else:
         return "invalid file"       
 
