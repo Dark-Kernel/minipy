@@ -39,6 +39,7 @@ def fernet_encrypt(plain_file, secret_pass, existing_key):
         return "invalid file"
 
 
+
     
 def fernet_decrypt(cipher_file, key_file, secret_pass=None):
     if cipher_file and cipher_file.filename:
